@@ -1,0 +1,124 @@
+------
+      |
+ HTTP |
+      |
+------
+
+HTTP - stateles протокол передачі даних. Предназначений був для передачі гіпертекстових документів у форматі HTML, наразі використовується і для передачі у різних форматах. 
+Обмін повідомлень відбувається за схемою запит-відповідь. Клієнт-серверна архітектура, клієнт посилає запит і отримує відновідь. Якщо забув щось, можна розказувати про REST =)
+Для ідентиіфікації ресурсів використовуютсья URI
+
+Запит скаладається з:
+Стартового рядка - метод URI HTTP version
+Headers(required host)
+Body розділяєтсья між headers пустою стрічкою. Якщо body присутнє, то має бути хедер Content-Lenght
+
+Методи:
+OPTIONS - повертає підтримувані сервором методи
+GET - запит на представлення ресурсу
+HEAD - як GET, тільки не повертає тіло відповіді. Використовується щоб дістати лише мета інформації, напирклад для кешування, щоб перевірити Last-Modified і не передавати самий ресурс
+POST - приймає сутність, включену в запит, як новий підлеглий ресурс (URI domain/resources/id)
+PUT - створює(Code 201 Created) або, якщо існує, заміняє ресурс(200 Ok)
+PATCH - апдейтить певну частину ресурсу
+DELETE - видаляє ресурс
+TRACE - ехо запиту, щоб побачити яким він приходить на сервер, що проміжні вузли змінили
+CONNECT
+
+Відповідь скаладєть з:
+HTTP/VERSION <код статусу> <опис статусу>
+Headers
+Body розділяєтсья між headers пустою стрічкою. Якщо body присутнє, то має бути хедер Content-Lenght
+
+POST vs PUT
+Разница между PUT и POST - это вопрос семантики. Коль скоро для операций используются разные глаголы, то и смысл у них должен быть разным.
+Представьте, что ваш сервис оперирует понятиями блокнот (notebook) и запись (post). Один блокнот может содержать множество записей.
+Для добавления новой записи в блокнот c идентификатором id вы будете использовать метод POST с URL mydomain/notebooks/id/. Ваш сервис, ориентируясь на метод POST,
+сам присвоит нужный идентификатор записи, добавит ее в блокнот и вернет вам URL созданной записи (для доступа к записи по GET или для удаления по DELETE).
+При этом хорошо бы вернуть клиенту URL созданной записи.
+Допустим, запись с идентификатором post-id уже создана и доступна по URL mydomain/notebooks/id/posts/post-id. Но клиент (владелец записи) исправил в ней ошибку и хочет перезаписать ее.
+Для этого он использует метод PUT с URL mydomain/notebooks/id/posts/post-id и передает обновленную запись в теле запроса. Ваш сервис, ориентируясь на метод PUT удаляет старую запись и
+записывает новую, при этом она доступна по тому же URL.
+Конечно, никто не мешает вам всегда использовать метод POST (например HTML 4 позволял использовать только методы GET и POST). Но все же стоит придерживаться рекомендаций в целях
+единообразной трактовки методов всеми разработчиками.
+UPD: Вспомнил еще кое-что. Рекомендуется использоваться метод POST для создания подчиненного ресурса (дочернего по отношению к другому ресурсу; пример блокнота и записи как раз очень
+подходит).
+
+
+
+
+Preflighted requests
+
+
+
+Unlike “simple requests” (discussed above), "preflighted" requests first send an HTTP request by the OPTIONS method to the resource on the other domain, in order to determine
+whether the actual request is safe to send. Cross-site requests are preflighted like this since they may have implications to user data.
+
+In particular, a request is preflighted if any of the following conditions is true:
+
+If the request uses any of the following methods:
+PUT
+DELETE
+CONNECT
+OPTIONS
+TRACE
+PATCH
+Or if, apart from the headers set automatically by the user agent (for example, Connection, User-Agent, or any of the other header with a name defined in the Fetch spec as a “forbidden header name”), the request includes any headers other than those which the Fetch spec defines as being a “CORS-safelisted request-header”, which are the following:
+Accept
+Accept-Language
+Content-Language
+Content-Type (but note the additional requirements below)
+Last-Event-ID
+DPR
+Save-Data
+Viewport-Width
+Width
+Or if the Content-Type header has a value other than the following:
+application/x-www-form-urlencoded
+multipart/form-data
+text/plain
+Or if one or more event listeners are registered on an XMLHttpRequestUpload object used in the request.
+Or if a ReadableStream object is used in the request.
+
+--------
+        |
+ TCP/IP |
+        |
+--------
+
+Концептуальна модель та стек протоколів, які застосовуються у Інтернеті. Ці протоколи визначають як дані будуть передаватись між учасниками. Функціональність розбита на такі рівні:
+прикладний, транспортний, мережевий, канальний. Кожен рівень інкапсульовує дані, додає до даних свої хедери так, що рівень нижче не знає де дані, а де попереній хедер, та передає рівню
+нижче.
+Після отримання дані деінкапсолюються на кожному рівні.
+
+Прикладний рівень - на цьому рівні застосунки, або процеси, обмінюються повідомленнями. (Представлення - Encoding, Decoding, encrypting, decrypting) (Cеансовий - authentication,
+authorization, session management)
+Транспортний рівень - визначає як дані будуть передаватись, чи буде збережено порядок, чи буде перепосилання загублених даних, чи буде встановлено зв'язок.
+TCP - забезпечує встановлення зв'язку, передачу даних у правильному порядку, перевідправлення битих(сhecksum), загублених сегментів, усунення дуплікатів. Дані можуть напрявлятись у обидві
+сторони.
+Handshake:
+A: SYN - 55(Initial Sequence number)
+B: SYN - 102 + ACK - 56
+A: ACK - 103
+Termiante - FIN
+Потік байтів розбивається на сегменти
+Мережевий відповідає за передачу даних через різні підмережі до отримувача. Routing..
+Канальний - перетворення мережевої адреси у МАС і передача у локальній мережі на фізичному рівні. Виправлення помилок, що можуть виникнути при передачі даних по фізичному рівні
+
+ARP (Address Resolution Protocol) - протокол для перетворення IP -> MAC. Reverse ARP - MAC -> IP.
+
+Virtual private network - дозволяє хосту отримувати та надсилати дані, ніби він під'єднаний фізично до локальної мережі, хоча зв'язок відбувається через публічну мережу.
+Приватна мережа(локальна) - мережа, у якій адресація по приватним ip.
+Tunneling protocol is a communications protocol that allows for the movement of data from one network to another.
+It involves allowing private network communications to be sent across a public network (such as the Internet) through a process called encapsulation.
+
+-----
+     |
+ UDP |
+     |
+-----
+
+Протокол обміну датаграмами. UDP не встановлює з'єднання між хостами, не гарнтує доставлення датаграм і їх порядок та повторне надсилання при загублені, битості.
+Являєтсья ненадійний протоколом.
+За рахунок відсутності handshake та перепосилання даних являється значно швидшим за TCP. Використовується у real-time ситуаціяк, коли скинути пакети краще, ніж очікування на перепосилання
+даних(video streaming, real-time games)
+Дані направляються лише в одну сторону.

@@ -1,0 +1,15 @@
+Azure or AWS
+HTML + CSS
+Angular or React.js
+DDD - Bounded Context
+
+.Net collections під капотом
+
+Які дизайн патерни використовуються .Net класа
+Наприклад декоратор, об'єкт Stream передається у класи FileStream, MemoryStream для додавання функціональності динамічно
+https://www.productivecsharp.com/2012/09/decorator-pattern-streams-in-net/
+https://www.productivecsharp.com/?s=pattern+in+.net&paged=4 використати список ля пошуку всіх реалізаці патернів на дот нет
+http://andrea-angella.blogspot.com/2012/09/factory-method-video-library.html
+
+Event-base architecture
+Web API

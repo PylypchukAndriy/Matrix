@@ -1,0 +1,1655 @@
+|      Породжуючі      |    Структурні    |        Поведінкові         |
+|----------------------|-----------------------------------------------|
+|  Абстрактна фабрика  |  Адаптер         |  Ланцюг відповідальностей  |
+|  Фабричний метод     |  Міст            |  Команда                   |
+|  Будівельник         |  Компонувальник  |  Інтерпретатор             |
+|  Прототип            |  Декоратор       |  Ітератор                  |
+|  Singleton           |  Фасад           |  Медіатор                  |
+ ----------------------|  Легковик        |  Хранитель                 |
+                       |  Проксі          |  Спостерігач               |
+                        ------------------|  Стан                      |
+                                          |  Стратегія                 |
+                                          |  Шаблонний метод           |
+                                          |  Відвідувач                |
+                                           ----------------------------
+
+Шаблони проектування - це способи вирішення певних повторюваних проблем при проектуванні системи.
+Для мене це плюшки, які за допомогою концепцій ООП(наслідування, поліморфізму, абстракції та інкапсуляці) допомагають спростити проектування типів, їх структури, взаємодії та породження.
+
+Породжуючі патерни - конструкції для спрощення створення об'єктів
+
+--------------------
+                    |
+ Абстрактна фабрика |
+                    |
+--------------------
+
+Надає простий інтерфейс для створення об'єктів, які належать до того чи іншого сімейства, при цьому приховуючи інформацію про конкретні типи цих об'єктів.
+
+abstract class Cat {}
+abstract class Bear {}
+
+class TeddyCat : Cat {}     class WoodCat : Cat {}
+class TeddyBear : Bear {}   class WoodyBear : Bear {}
+
+interface IToysFactory
+{
+  Cat GetCat();
+  Bear GetBear();
+}
+
+class TeddyToysFactory : IToysFactory                  class WoodenToysFactory : IToysFactory
+{                                                      {
+  public Cat GetCat() { return new TeddyCat(); }         public Cat GetCat() { return new WoodCat(); }
+  public Cat GetBear() { return new TeddyBear(); }       public Cat GetBear() { return new WoodBear(); }
+}                                                      }
+
+/*Teddy toys*/
+IToysFactory factory = new TeddyToysFactory();
+Cat cat = factory.GetCat();
+Bear bear = factory.GetBear();
+
+/*Wooden toys*/
+factory = new WoodenToysFactory();
+Cat cat = factory.GetCat();
+Bear bear = factory.GetBear();
+
+-------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                    |
+1) Яскравим прикладом у .Net являється абстрактний клас DbProviderFactory, який повератає об'єкти DbCommand, DbConnection, DbParameter.          |
+У залежності від провайдера, будуть повератись об'єкти певного сімейства, наприклад SqlСlientFactory повертатиме SqlConnection, SqlCommand і тд. |
+Код, який прийматиме абстракцію DbProviderFatory, не буде знати та залежити від конкретної реалізації, що робить код більш гнучким, low coupled. |
+-------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------------
+                 |
+ Фабричний метод |
+                 |
+-----------------
+
+Визначає інтерфейс створення об'єкту, але надає можливість підкласам вирішувати який тип об'єкта інстанціювати.
+Фабричний метод, що визначає який тип інстанціювати на основі параметра методу, називається параметризований фабричний метод.
+Є різні варіанти реалізації:
+1) Фабрика містить неабстрактний невіруальний метод
+class LoggerFactory
+{
+   public ILogger GetLogger(LoggingProviders providers)
+   {
+     switch(providers
+     {
+       case LoggingProviders.Enterprise:
+         return new EnterpriseLogger();
+       case LoggingProviders.Log4Net:
+         return new Log4Net();
+     }
+   }
+}
+
+2) Коли Фабрика містить вірутальний фабричний метод, а похідні класи його оверайдяться. Можуть використовуватись як базові так і похідні фабрики
+class LoggerFactory
+{
+   public virtual ILogger GetLogger(LoggingProviders providers)
+   {
+     switch(providers
+     {
+       case LoggingProviders.Enterprise:
+         return new EnterpriseLogger();
+       case LoggingProviders.Log4Net:
+         return new Log4Net();
+     }
+   }
+}
+
+class ExtendedLoggerFactory : LoggerFactory
+{
+  public override ILogger GetLogger(LoggingProviders providers) { /**/ }
+}
+
+3) Фабрика абстракта і лише надає інтерфейс, а похідні типи визначають поведінку.
+abstract class LoggerFactory
+{
+  public abstract GetLogger(LoggingProviders providers);
+}
+
+class ExtendedLoggerFactory : LoggerFactory
+{
+  public override ILogger GetLogger(LoggingProviders providers) { /**/ }
+}
+
+Parameterless
+
+abstract Factory
+public abstract GetLogger();
+Factory1 : Factory
+public ovveride GetLogger()
+{
+  return new Log4Net();
+}
+
+Factor2 : Factory
+public ovveride GetLogger()
+{
+  return new MyLogger();
+}
+
+or 
+
+class TurkeySandwich : Sandwich
+{
+    public override void CreateIngredients()
+    {
+        Ingredients.Add(new Bread());
+        Ingredients.Add(new Mayonnaise());
+        Ingredients.Add(new Lettuce());
+        Ingredients.Add(new Turkey());
+        Ingredients.Add(new Turkey());
+        Ingredients.Add(new Bread());
+    }
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net examples:                                                                                                                                                                              | 1) WebRequest клас довзоляє надсилати запити та отримувати відповіді за допомогою протоколів http, ftp...                                                                                   |
+У Create метод передається URI параметр, по якому визначається який протокол використати, і цей метод повертає в залежності від протоколу або HttpWebRequest або FtpWebRequest...           |
+2) IDbConnection.BeginTransaction() у залежності від бази повертає тип транзакції                                                                                                           |
+3) Activator.CreateInstance.                                                                                                                                                                |
+4) Convert клас з його методами ConverrtToInt32, ToBoolean і тд. Мені не здається, що це фабричний метод, пояснюються це тим, що Сonvert клас замість тебе створює необхідний тобі об'єкт   |
+і інкапсульовує комплексу цю роботу.                                                                                                                                                        |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-------------
+             |
+ Будівельник |
+             |
+-------------
+
+Дозволяє одному процесу створення об'єкту утворювати його різні представлення.
+Наприклад, є об'єкт ноутбук і в залежності для чого необхідно ноутбук, будь це ігри, робота з презентаціями та документами чи робота з графікою, один процес створення ноутбука буде повератти ігровий чи ноутбук для роботи.
+
+class Laptop { MonitorResolution, HDD, CPU, RAM, GPU..... and so on }
+
+abstract class LaptopBuilder
+{
+  private Laptop _laptop;
+
+  public LaptopBuilder() { _laptop = new Laptop(); }
+  
+  public Laptop GetLaptop() { return _laptop; }
+
+  public abstract void SetMonitorResolution();
+  public abstract void SetHDD();
+  public abstract void SetCPU();
+  public abstract void SetRAM();
+  public abstract void SetGPU();
+}
+
+class GamingLaptopBuilder : LaptopBuilder           class WorkLaptopBuilder : LaptopBuilder
+{                                                   {
+  public ovveride void SetMonitorResolution() {}      public ovveride void SetMonitorResolution() {}
+  public ovveride void SetHDD() {}                    public ovveride void SetHDD() {}
+  public ovveride void SetCPU() {}                    public ovveride void SetCPU() {}
+  public ovveride void SetRAM() {}                    public ovveride void SetRAM() {}
+  public ovveride void SetGPU() {}                    public ovveride void SetGPU() {}
+}                                                   }
+
+class Director
+{
+  private LaptopBuilder _builder;
+
+  public Director(LaptopBuidler builder) { _builder = builder; }
+  
+  public void SetLaptopBuilder(LaptopBuilder builder) { _builder = builder; }
+  
+  public Laptop GetLaptop() { return _builder.GetLaptop(); }
+  
+  public void BuildLaptop()
+  {
+    _builder.SetMonitorResolution();
+    _builder.SetHDD();
+    _builder.SetCPU();
+    /*...*/
+  }
+}
+
+/*Ноутбук для ігор*/
+Director director = new Director(new GamingLaptopBuilder());
+director.BuildLaptop();
+Laptop laptop = director.GetLaptop();
+
+/*Ноутбук для роботи*/
+director.SetLaptopBuilder(new WorkLaptopBuilder());
+director.BuildLaptop();
+laptop = director.GetLaptop();
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net examples:                                                                                                                                                                              | 1) UriBuilder                                                                                                                                                                               |
+2) System.Data.Common.DbConnectionStringBuilder                                                                                                                                             |
+string connectionString = new SqlConnectionStringBuilder                                                                                                                                    |
+{                                                                                                                                                                                           |
+    DataSource = "localhost",                                                                                                                                                               |
+    InitialCatalog = "MyDatabase",                                                                                                                                                          |
+    IntegratedSecurity = true,                                                                                                                                                              |
+    Pooling = false                                                                                                                                                                         |
+}.ConnectionString;                                                                                                                                                                         |
+ConnectionString має алгоритм збирання строки, один алгоритм дає різні преставлення                                                                                                         |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------
+          |
+ Прототип |
+          |
+----------
+
+Дозволяє створювати копії об'єктів.
+class CalendarPrototype
+{
+  public virtual CalendarPrototype Clone()
+  {
+    return this.MemberwiseClone();
+  }
+}
+
+class CalendarEvent : CalendarProptotype {}
+or 
+class CalendarEvent : CalendarPrototype
+{
+  public override CalendarPrototype Clone()
+  {
+    var copy = (CalendarEvent)base.Clone();
+    ///If shallow copy not suitable for some cases make deep copy
+    copy = (Attendee[])Attendee.Clone();
+    return copy;
+  }
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                              |  1) ICloneable                                                                                                                                                                              |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------
+           |
+ Singleton |
+           |
+-----------
+
+Забезпечує існування єдиного екземпляру класу та єдиної точки доступу до нього.
+
+sealed сlass Singleton
+{
+  private static Lazy<Singleton> _instance = new Lazy<Singleton>(new Singletone());
+  
+  private Singleton() {}
+  
+  public Singleton Instance { get { return _instance.Value; } }
+}
+
+Singleton vs Static class
+1) екземпляр Singleton можна передавати як параметр у методи
+2) Singleton може релізовувати інтерфейси, віднаслідуватись від іншого класу
+3) Може мати стан(поля)
+4) Компілятор гарантує одиночну ініціалізацію статичного типу, з Singleton треба попаритись з потокобезпечністю
+
+Why Singleton anti-pattern?
+Він не являється
+1) Тяжко тестити в юніт-тестах, тяжко мокати. Рішення: най реалізує інтерфейс...solved
+2) Глобальний стан програми, який можна змінити з будь-якого закутка програми..різними потоками.
+3) Порушує SRP, так як в його обов'язках дві задачі: керування утворення лише одного інстанса та сама логіка, для якої створюється синглтон
+
+ВАЖЛИВО!!!!!!! Краще делегувати керуванням лайфтаймом IoC-контейнеру і реалізувати звичайний неsingleton клас
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                              |                                                                                                                                                                                             |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Структурні патерни - організація взаємодії між класами для виконання певних завдань
+
+---------
+         |
+ Адаптер |
+         |
+---------
+
+Дозволяє конвертувати інтерфейс класу у інтерфейс, що очікує клієнт. Вирішує проблему несумісності інтерфейсів.
+
+interface IOldElectricitySystem       interface INewElectricitySystem
+{                                     {
+  void MatchThinSocket();               void MatchWideSocket();
+}                                     }
+
+class OldElectricitySystem : IOldElecticitySystem     class NewElectricitySystem : INewElectricitySystem
+{                                                     {
+  public void MatchThinSocket() {}                       public void MatchWideSocket() {}
+}                                                     }
+
+class Adapter : INewElectricitySystem
+{
+  private IOldElectricitySystem _oldSystem;
+  
+  public Adapter(IOldElectricitySystem oldSystem)
+  {
+    _oldSystem = oldSystem;
+  }
+  
+  public void MatchWideSocket()
+  {
+     _oldSystem.MatchThinSocket();
+  }
+}
+
+class Client
+{
+   public static void ChargeLaptop(INewElectiricySystem system)
+   {
+     system.MatchWideSocket();
+   }
+}
+
+INewElectricitySystem newSystem = NewElectricitySystem();
+Client.ChargeLaptop(newSystem);
+
+IOldElecticitySystem oldSystem = new OldElectricitySystem();
+var adapter = new Adapter(oldSystem);
+Client.ChargeLaptop(adapter);
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net examples:                                                                                                                                                                         |      
+1) IDbDataAdapter  SqlAdapter, OracleAdapter, MySqlAdapter                                                                                                                             |
+2) Допустимо, що ми використовуємо COM компонент і нам треба передати стрічку. COM компоненти не вміють працювати з типом System.String, для того, щоб взаємодіяти з інтерфейсом COM,  |
+Runtime Callable Wrapper огортає System.String в тип, який відомий COM, наприклад BSTR.                                                                                                |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------
+      |
+ Міст |
+      |
+------
+
+Відділяє абстракцію та імплементація так, щоб обидва могли змінюватись незалежно.
+
+interface IImplementor
+{
+  void Implement();
+}
+
+class Implementor1 : IImplementor     class Implementor2
+{                                     {
+  public void Implement() {}             public void Implement() {}
+}                                     }
+
+class Job
+{
+  /* Зміна імплеменатції */
+  public IImplementor Implementor { get; set; }
+  
+  /* Зміна абстакції(метода Do) */
+  public virtual void Do()
+  {
+     Implementor.Implement();
+  }
+}
+
+class AnotherJob : Job
+{
+  /* Зміна абстакції(метода Do) */
+  public ovveride Do { /* Do smth else */ }
+}
+
+
+IImplementor implementor1 = new Implementor1();
+IImplementor implementor2 = new Implementor2();
+
+var job = new Job();
+job.Implementor = implementro1;
+job.Do();
+
+/* Зміна імплеменатції */
+job.Implementor = implementro2;
+job.Do();
+
+/* Зміна абстакції(метода Do) */
+job = new AnotherJob();
+job.Implementor = implementro1;
+job.Do();
+
+/* Зміна імплеменатції */
+job.Implementor = implementro2;
+job.Do();
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                              |  1) System.Globalization.CultureInfo                                                                                                                                                        |
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------------
+                |
+ Компонувальник |
+                |
+----------------
+
+Об'єднує об'єкти у ієрархічну деревовидну структуру та дозволяє уніфіковано звертатись до кожного об'єкта
+
+abstract class Leaf
+{
+    protected double Price;
+
+    protected Leaf(double price) { Price = price; }
+
+    public abstract double CalculatePrice();
+}
+
+class SingleLeaf : Leaf
+{
+    public SingleLeaf(double price) : base(price) { }
+
+    public override double CalculatePrice()
+    {
+        return Price;
+    }
+}
+
+class CompositeLeaf : Leaf
+{
+    private readonly IList<Leaf> _leafList;
+
+
+    public CompositeLeaf(double price) : base(price)
+    {
+        _leafList = new List<Leaf>();
+    }
+
+    public void Add(Leaf leaf) { _leafList.Add(leaf); }
+
+    public void Remove(Leaf leaf) { _leafList.Remove(leaf); }
+
+    public override double CalculatePrice()
+    {
+        double total = Price;
+        foreach (var leaf in _leafList)
+        {
+            total += leaf.CalculatePrice();
+        }
+
+        return total;
+    }
+}
+
+Leaf singleLeaf = new SingleLeaf(5);
+Leaf anotherSingleLeaf = new SingleLeaf(2);
+CompositeLeaf compositeLeaf = new CompositeLeaf(10);
+CompositeLeaf secondCompositeLeaf = new CompositeLeaf(3);
+
+compositeLeaf.Add(singleLeaf);
+compositeLeaf.Add(anotherSingleLeaf);
+secondCompositeLeaf.Add(compositeLeaf);
+
+Console.WriteLine(singleLeaf.CalculatePrice()); // 5
+Console.WriteLine(compositeLeaf.CalculatePrice()); //17
+Console.WriteLine(secondCompositeLeaf.CalculatePrice()); // 20
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) Клас Web.UI.Control може містити колекцію Control або самим бути єдиним контролом. Він має метот Render, який має або розрендирити себе або всіх з колекції. |
+2) XmlNode                                                                                                                                                      |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------
+           |
+ Декоратор |
+           |
+-----------
+
+Надання додаткової функціональності об'єкту динамічно
+
+abstract class Car
+{
+  public abstract void Go();
+}
+
+class Mercedes : Car
+{
+  public override void Go()
+  {
+     Console.WriteLine("Merc is on a way!!!");
+  }
+}
+
+class CarDecorator : Car
+{
+  private Car _car;
+  pubic CarDecorator(Car car) { _car = car; }
+
+  public override void Go() { _car.Go(); }
+}
+
+class AmbulanceCar : CarDecorator
+{
+  public AmbulanceCar(Car car) : base(car) { }
+
+  public override void Go()
+  {
+     Console.WriteLine("Beeep!!!");
+     base.Go();
+  }
+}
+
+or
+
+abstract class Pizza
+{
+    public abstract double GetPrice();
+}
+
+class ItalianPizza : Pizza
+{
+    public override double GetPrice() { return 10; }
+}
+
+class PizzaDecorator : Pizza
+{
+    private Pizza _pizza;
+    public PizzaDecorator(Pizza pizza) { _pizza = pizza; }
+
+    public override double GetPrice()
+    {
+        return _pizza.GetPrice();
+    }
+}
+
+class CheesePizza : PizzaDecorator
+{
+    public CheesePizza(Pizza pizza) : base(pizza) { }
+
+    public override double GetPrice() { return base.GetPrice() + 5; }
+}
+
+Pizza italian = new ItalianPizza();
+Console.WriteLine(italian.GetPrice()); //10
+italian = new CheesePizza(italian);
+Console.WriteLine(italian.GetPrice()); //15
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                    |         
+1) MemoryStream, FileStream, NetworkStream декоруються Stream для додавання функціональності. Stream - це послідовність байтів, може бути з текстового файла, мережевого трафіку |
+чи з геть іншого сорса, FileStream дозвоялє обходитись з цим потом байтів як з даними з файла.                                                                                   |
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------
+       |
+ Фасад |
+       |
+-------
+
+Надає єдиний інтерфейс для взаємодії з множиної інших інтерфейсів системи. Надає єдину точку доступу до підистеми, що спрощує її використання та розуміння.
+Декілька сервісів, які лоігчно пов'язані, інкапсульовуються у фасаді для спрощеної взаємодії. Щоб не викликати з клієнта всі ці сервіси, фасад може надати один або декілька методів, які вже зроблять всю роботу.
+
+class SkiRent                                                 class SkiResortTicketSystem                 class HotelBookingSystem
+{                                                             {                                           {
+ public int RentBoots(int feetSize, int skierLevel)             public int BuyOneDayTicket()                public int BookRoom(int roomQuality)
+ {                                                              {                                           {
+   return 20;                                                      return 115;                                switch (roomQuality)
+ }                                                              }                                             {
+ public int RentSki(int weight, int skierLevel)                 public int BuyHalfDayTicket()                   case 3: return 75;
+ {                                                              {                                               case 4: return 95;
+   return 40;                                                      return 115;                                  case 5: return 135;
+ }                                                              }                                             }
+ public int RentPole(int height)                              }                                             }
+ {                                                                                                         }
+   return 5;
+ }
+}
+
+class SkiResortFacade
+{
+  private SkiRent _skiRent;
+  private SkiResortTicketSystem _ticketSystem;
+  private HotelBookingSystem _hotelSystem;
+  
+  public SkiResortFacae(SkiRent skiRent, SkiResortTicketSystem _ticketSystem, HotelBookingSystem _hotelSystem)
+  {
+    _skiRent = skiRent;
+    _ticketSystem = ticketSystem;
+    _hotelSystem = hotelSystem;
+  }
+
+  public int BookOneDaySkiResort(int weight, int height, int feetSize, int skierLevel, int roomQuality)
+  {
+    int bootsCost = _skiRent.RentBoots(feetSize, skierLevel);
+    int skiCost = _skiRent.RentSki(weight, skierLevel);
+    int poleCost = _skiRent.RentPole(height);
+   
+    int ticketCost = _ticketSystem.BuyOneDayTicket();
+   
+    int roomCost = _bookingSystem.BookRoom(5);
+
+    return bootsCost + skiCost + poleCost + ticketCost + roomCost;
+  }
+
+  public int BookHalfDaySkiResortWithoutSkiEquipment(int roomQuality)
+  {
+    return _bookingSystem.BookRoom(3);
+  }
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) System.Environment                                                                                                                                           |
+2) System.String                                                                                                                                                |
+3) XmlSerializer                                                                                                                                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------
+              |
+ Легковаговик |
+              |
+--------------
+
+Ефективна підтримка великої кількості об'єктів шляхом виокремлення спільної інформації лише в еземпляр.
+Наприклад, є ігрові юніти, такі як гобліни, орки, дркони. Всі вони мають кількість здоров'я, атаку, захист та зображення.
+Хоч атака, здоров'я і захист можуть змінюватись, зображення всі мають одинкове. Якщо створити 150 об'єктів гоблінів і кожен буде мати не спільний об'єкт зображення, це значно вдаре по використанню оперативної пам'яті.
+Тому всі об'єкти можуть перевикористовувати один об'єкт зображення.
+
+abstract сlass Unit
+{
+  public int Attack { get; set; }
+  public int Defence { get; set; }
+  public int Health { get; set; }
+  public Image Appearance { get; set; }
+}
+
+class Goblin : Unit                                                   class Dragon : Unit
+{                                                                     {
+  public Goblin()                                                        public Dragon()
+  {                                                                      {
+    Attack = 5;                                                            Attack = 55;
+    Defence = 1;                                                           Defence = 30;
+    Health = 15                                                            Health = 150;
+    Appearance = UnitAppearanceFactory.GetGoblinAppereance();              Appearance = UnitAppearanceFactory.GetDragonAppereance();
+  }                                                                      }
+}                                                                     }
+
+static class UnitAppearanceFactory
+{
+  private static Dictionary<Type, Image> _unitAppereance = new Dictionary<Type, Image>()
+
+  public static Image GetGoblinAppereance()
+  {
+    var goblinType = typeof(Goblin);
+    if(_unitAppereance.ContainsKey(goblinType))
+    {
+      return _unitAppereance[goblinType];
+    }
+    Image goblin = Image.Load("D:\Goblin.png");
+    _unitAppereance.Add(goblinType, goblin);
+
+    return goblin;
+  }
+
+  public static Image GetDragonAppereance()
+  {
+    var dragonType = typeof(Dragon);
+    if(_unitAppereance.ContainsKey(dragonType))
+    {
+      return _unitAppereance[dragonType];
+    }
+    Image dragon = Image.Load("D:\Dragon.png");
+    _unitAppereance.Add(dragonType, dragon);
+
+    return dragon;
+  }
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) StringComparer                                                                                                                                               |
+2) String.Intern ???                                                                                                                                            |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------
+        |
+ Проксі |
+        |
+--------
+
+Об'єкт замінник, який керує доступом до іншого об'єкту, має ті ж методи, що і внутрішінй об'єкт, може забезпечинити його lazy loading, ініціалізувати лише коли необхідно.
+
+Проксі схожий на декоратор, але є відмінності. Основна задача декоратора додати відповідальностей(функціоналу) об'єкту, який передається ззовні.
+Проксі ж інкапсулює об'єкт і створює його лише при необхідності.
+
+
+interface IBookService
+{
+  Page GetPage();
+}
+
+class BookService : IBookService
+{
+   private BookingContext _context;
+
+   public BookingService() { _context = new BookingContext(); }
+
+   public Page GetPage(number)
+   {
+     return _context.Pages.FirstOrDefault(x => x.Number == numer);
+   }
+}
+
+class BookingServiceProxy : IBookingService
+{
+   private BookingService _bookingService;
+   private List<Page> _pages = new List<Page>();
+
+   public Page GetPage(number)
+   {
+     Page page = _pages.FirstOrDefault(x => x.Number == numer);
+     if(page == null)
+     {
+        if(_bookingService == null)
+        {
+          _bookingService = new BookingService();
+        }
+        page = _bookingService.GetPage(number);
+        _pages.Add(page);
+     }
+     return page;
+   }
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) WebClient                                                                                                                                                    |    
+2) RealProxy                                                                                                                                                    |
+3) ICommunicationObject                                                                                                                                         |
+4) Everywhere in .Net remoting                                                                                                                                  |
+5) WFC, communication channel                                                                                                                                   |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Поведінкові патерни - акцентують увагу на поведінці, дозволяють її інкапсулювати або розподілити 
+
+--------------------------        
+                          |
+ Ланцюг відповідальностей |
+                          |
+--------------------------
+
+Забезпечує обробку об'єкту шляхом передачі його по ланцюху, допоки якась з ланок не опрацює даний об'єкт.
+
+class Food
+{
+    public string Name { get; set; }
+
+    public List<string> Ingredients { get; set; }
+
+    public Food(string name, List<string> ingredients)
+    {
+        Name = name;
+        Ingredients = ingredients;
+    }
+}
+
+abstract class CafeVisitor
+{
+    private readonly CafeVisitor _visitor;
+
+    protected CafeVisitor(CafeVisitor visitor)
+    {
+        _visitor = visitor;
+    }
+
+    public virtual void HandleFood(Food food)
+    {
+        _visitor?.HandleFood(food);
+    }
+}
+
+class BestFriend : CafeVisitor                                           class Me : CafeVisitor                                      class Girl : CafeVisitor
+{                                                                        {                                                           {
+  private bool _caffeineTaken;                                             public Me(CafeVisitor visitor) : base(visitor) { }          public Girl(CafeVisitor visitor) : base(visitor) { }
+ 
+  public BestFriend(CafeVisitor visitor) : base(visitor) { }               public override void HandleFood(Food food)                  public override void HandleFood(Food food)
+                                                                           {                                                           {
+  public override void HandleFood(Food food)                                 if (food.Name == "Soup with potato")                        if (food.Name == "Cappuccino")
+  {                                                                          {                                                           {
+    if (food.Ingredients.Contains("Meat"))                                     Console.WriteLine("Me: I'll take that.");                   Console.WriteLine("Girl: My Cappuccino");
+    {                                                                          return;                                                     return;
+      Console.WriteLine("Best Friend: I'll take that meat");                 }                                                           }
+      return;                 
+    }                                                                         base.HandleFood(food);                                     base.HandleFood(food);
+                                                                            }                                                          }
+    if (food.Ingredients.Contains("Coffee") && !_caffeineTaken)           }                                                          }
+    {
+      _caffeineTaken = true;
+      Console.WriteLine("Best Friend: Myyyyy coffee");
+      return;
+    }
+
+    base.HandleFood(food);
+  }
+}
+
+var cappuccino1 = new Food("Cappuccino", new List<string> {"Coffee", "Milk", "Sugar"});
+var cappuccino2 = new Food("Cappuccino", new List<string> { "Coffee", "Milk" });
+var soup1 = new Food("Soup with meat", new List<string> {"Meat", "Water", "Potato"});
+var soup2 = new Food("Soup with potato", new List<string> { "Water", "Potato" });
+var meat = new Food("Meat", new List<string> { "Meat" });
+var girl = new Girl(null);
+var me = new Me(girl);
+var bestFriend = new BestFriend(me);
+bestFriend.HandleFood(cappuccino1); // Best Friend: Myyyyy coffee
+bestFriend.HandleFood(cappuccino2); // Girl: My Cappuccino
+bestFriend.HandleFood(soup1);       // Best Friend: I'll take that meat
+bestFriend.HandleFood(soup2);       // Me: I'll take that.
+bestFriend.HandleFood(meat);        // Best Friend: I'll take that meat
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+                                                                                                                                                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---------
+         |
+ Команда |
+         |
+---------
+
+Дозволяє інкапсулювати інформацію необхідну для виконання операції, яку можна бути виконати пізніше за допомогою об'єкту команди.
+
+interface ICommand
+{
+  void Execute();
+}
+
+class CompleteTaskCommand
+{
+  private string _taskRef;
+  private Developer _dev;
+  
+  public CompleteTaskCommand(string taskRef, Developer dev)
+  {
+    _taskRef = taskRef;
+    _dev = dev;
+  }
+  
+  public void Execute()
+  {
+    _dev.CompleteTask(_taskRef);
+  }
+}
+
+class Sprint
+{
+  private IList<ICommand> _commands = new List<ICommand>();
+  
+  public string Name { get; set; }
+  public Sprint(string name) { Name = name; }
+
+  public void Add(ICommand command) { _commands.Add(command); }
+
+  public void Start()
+  {
+    foreach(command in _commands)
+    {
+      command.Execute();
+    }
+  }
+}
+
+var sprint = new Sprint("First Sprint");
+var developerTeam = project.DevTeam; // object of your project
+var completeTask848 = new CompleteTaskCommand("PTT-848", developerTeam.FirstOrDefault(x => x.Level == "Middle"));
+var completeTask901 = new CompleteTaskCommand("PTT-901", developerTeam.FirstOrDefault(x => x.Level == "Junior"));
+var estimateTask923 = new EstimateTaskCommand("PTT-923", developerTeam.FirstOrDefault(x => x.Level == "Senior Pomidor"))
+
+sprint.Add(completeTask848);
+sprint.Add(completeTask901);
+sprint.Add(estimateTask923);
+
+sprint.Start() // executes all commands
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) ICommand(WPF)                                                                                                                                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---------------
+               |
+ Інтерпретатор |
+               |
+---------------
+
+Шо то там мова, що то там інтерпретувати.
+Доволяє описати граматику певної мови та потім написане речення тією мовою інтерпретувати його значення.
+
+Схожий з копонувальником, так як використовує його структуру(ІМХО), тільки у компонувальнику об'єкти повертали власноруч превизначений свій прайс, тут кожен об'єкт покладається на контекст,
+з якого повертається значення ціни. Так як контекст можна змінити, то і об'єкт повератиме іншу ціну, наприклад при розпродажі(контекст) телевізом може коштувати значно менше, ніж у звичайний сезон(інший контекст).
+
+abstract class Goods
+{
+    public abstract double Interpret(GoodsCurrentPricesContext context);
+}
+
+class Box : Goods
+{
+    private IList<Goods> _goods = new List<Goods>();
+
+    public void Add(Goods good) { _goods.Add(good); }
+
+    public override double Interpret(GoodsCurrentPricesContext context)
+    {
+        double total = 0;
+        foreach (var good in _goods)
+        {
+            total += good.Interpret(context);
+        }
+
+        return total;
+    }
+}
+
+class TV : Goods                                                                class Laptop : Goods                  
+{                                                                               {
+    public override double Interpret(GoodsCurrentPricesContext context)           public override double Interpret(GoodsCurrentPricesContext context)      
+    {                                                                             {
+      return context.GetPrice("TV");                                                 return context.GetPrice("Laptop");
+    }                                                                             }
+}                                                                               }                                                            
+
+class GoodsCurrentPricesContext
+{
+    private Dictionary<string, double> _goodsPrices = new Dictionary<string, double>();
+
+    public void Add(string goodName, double price) { _goodsPrices.Add(goodName, price); }
+
+    public double GetPrice(string goodName)
+    {
+        return _goodsPrices[goodName];
+    }
+}
+
+var context = new GoodsCurrentPricesContext();
+context.Add("TV", 5000);
+context.Add("Laptop", 2300);
+
+Goods tv = new TV();
+Goods laptop = new Laptop();
+Box box = new Box();
+
+box.Add(tv);
+box.Add(laptop);
+
+Console.WriteLine(box.Interpret(context)); // 7300
+
+var salesContext = new GoodsCurrentPricesContext();
+salesContext.Add("TV", 3300);
+salesContext.Add("Laptop", 1680);
+
+Console.WriteLine(box.Interpret(salesContext)); // 4980
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) IFormatProvider                                                                                                                                              |
+2) Regex                                                                                                                                                        |               
+3) System.Linq.Expressions.Expression                                                                                                                           |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------
+          |
+ Ітератор |
+          |
+----------
+
+Дозволяє пройтись по елементах певної колекції, не розбира.xbcm у структурі композитного об'єкту.
+Надає послідовний доступ до елементів об'єкта-агрегата без вникання у внутрішню структуру об'єкта.
+
+class CompositeObject
+{
+    private int[] array = { 1, 2, 3, 4, 5, 6 };
+    private int _iterateNumber = -1;
+
+    public int Current => array[_iterateNumber]; // Need to validate that _iterateNumber not greater that array.Count() - 1
+
+    public bool MoveNext() // violate CQS ??
+    {
+        _iterateNumber++;
+        return _iterateNumber < array.Length;
+    }
+
+    public void Reset() { _iterateNumber = -1; }
+}
+
+var collection = new CompositeObject();
+
+while (collection.MoveNext())
+{
+    Console.WriteLine(collection.Current); // 1 2 3 4 5 6
+}
+
+collection.Reset();
+
+while (collection.MoveNext())
+{
+    Console.WriteLine(collection.Current); // 1 2 3 4 5 6
+}
+
+--------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                       |
+1) IEnumerable дає інтерфейс для проходження(IEnumerator по внутрішній колекції об'єктів через метод GetEnumerator  |
+2) IDataReader                                                                                                      |
+--------------------------------------------------------------------------------------------------------------------
+
+----------
+          |
+ Медіатор |
+          |
+----------
+
+Забезпечує взаємодію між компонентами, послаблюючи їх зв'язність. Медіатор знає про кожен компонент, а компонент знає лише про медіатор.
+
+abstract class BodyPart
+{
+  protected readonly IBrainMediator _mediator;
+  protected BodyPart(IBrainMediator mediator) { _mediator = mediator; }
+
+  void NotifyAboutChanges() { _mediator.Notify(this); }
+}
+
+interface IBrainMediator
+{
+  Notify(IBodyPart bodyPart);
+}
+
+class Ear : IBodyPart                                                  class Face : IBodyPart
+{                                                                      {
+  private List<string> _sounds = new List<string>();                      public Face(IBrainMediator mediator) : base(mediator) {}
+  public Ear(IBrainMediator mediator) : base(mediator) {}  
+                                                                          public void Smile() { Console.WriteLine("Smiling"); } 
+  public void HearSmthing() 
+  {                                                                       public void MakeAggressiveLook { Console.WriteLine("Stay away from me"); }
+     _sounds.Add(Console.ReadLine());
+     NotifyAboutChanges();
+  }
+  
+  public List<string> GetSounds() { return _sounds; }
+}
+
+class Brain : IMediator
+{
+  private Ear _ear = new Ear();
+  private Face _face = new Face();
+
+  public void Notify(IBodyPart bodyPart)
+  {
+     if(bodyPart is Ear)
+     {
+        var ear = bodyPart as Ear;
+        var sounds = ear.GetSounds();
+
+        if(sounds.Contains("BAD"))
+        {
+           _face.MakeAggressiveLook();
+        }else
+        {
+           _face.Smile();
+        }
+
+        return;
+     }
+  }
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) System.Threading.Timer                                                                                                                                       |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------
+           |
+ Хранитель |
+           |
+-----------
+
+Зберегти стан об'єкта та дозволити потім відновити об'єкт до збереженого стану.
+
+class GameEvent
+{
+  private GameState _state = new GameState(100, 0) // 100 health, 0 killed monsters
+
+  public void Play()
+  {
+     _state = new GameState(_state.Health * 0.9, _state.MonstersKilled + 2);
+  }
+
+  public GameMemento SavePoint()
+  {
+     return new GameMemento(_state);
+  }
+
+  public void RestorePoint(GameMemento memento)
+  {
+     _state = memento.GetState();
+  }
+}
+
+class GameMemento
+{
+  private GameState _state;
+
+  public GameMemento(GameState state) { _state = state; }
+
+  public GameState GetState() { return _state; }
+}
+
+class Game
+{
+  private GameEvent _event = new GameEvent();
+  private Stack<GameMomento> _gameMomento = new Stack<GameMomento>();
+
+  public void Shoot()
+  {
+    _event.Play();
+  }
+
+  public void F5()
+  {
+    _gameMomento.Push(_event.SavePoint());
+  }
+
+  public void F9()
+  {
+    var lastSave = _gameMomnto.Pop();
+    _event.RestorePoint(lastSave.GetState());
+  }
+}
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) ISerializable                                                                                                                                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------------
+             |
+ Спостерігач |
+             |
+-------------
+
+Дозволяє сповіщати зацікавлені сторони про зміну об'єкту.
+
+1) Simplified implementaion
+
+interface IObserver
+{
+    void Notify(ISubject subject);
+}
+
+interface ISubject
+{                               
+    void Subscribe(IObserver observer);
+ 
+    void Unsubscribe(IObserver observer);
+    void Notify();
+}
+
+
+class BoxFight : ISubject
+{
+    private readonly IList<IObserver> _observers = new List<IObserver>();
+
+    public int Score { get; private set; }
+
+    public void Subscribe(IObserver observer)
+    {
+        if (!_observers.Contains(observer))
+        {
+            _observers.Add(observer);
+        }
+    }
+
+    public void Unsubscribe(IObserver observer)
+    {
+        _observers.Remove(observer);
+    }
+
+    public void Notify()
+    {
+        foreach (var observer in _observers)
+        {
+            observer.Notify(this);
+        }
+    }
+
+    public void Play()
+    {
+        Score = new Random().Next(1, 1000);
+        Notify();
+    }
+}
+
+class RiskyPlayer : IObserver
+{
+    public void Notify(ISubject subject)
+    {
+        var boxFight = subject as BoxFight;
+        Console.WriteLine($"Risky player: Score {boxFight.Score}");
+    }
+}
+
+class SafePlayer : IObserver
+{
+    public void Notify(ISubject subject)
+    {
+        var boxFight = subject as BoxFight;
+        Console.WriteLine($"Safe player: Score {boxFight.Score}");
+    }
+}
+
+var boxFight = new BoxFight();
+var riskyPlayer = new RiskyPlayer();
+var safePlayer = new SafePlayer();
+
+boxFight.Subscribe(riskyPlayer);
+boxFight.Subscribe(safePlayer);
+
+
+boxFight.Play();
+boxFight.Unsubscribe(safePlayer);
+
+boxFight.Play();
+
+
+2) Advanced with subscription that can be disposed by observer
+abstract class Observer
+{
+    private IDisposable _subscription;
+
+    public void Subscribe(BoxFight boxFight)
+    {
+        _subscription = boxFight.Subscribe(this);
+    }
+
+    public void Unsubscribe()
+    {
+        _subscription?.Dispose();
+    }
+
+    public abstract void Notify(BoxFight boxFight);
+}
+
+class BoxFight
+{
+    private readonly IList<Observer> _observers = new List<Observer>();
+
+    public int Score { get; private set; }
+
+    public BoxFightSubscription Subscribe(Observer observer)
+    {
+        if (!_observers.Contains(observer))
+        {
+            _observers.Add(observer);
+            return new BoxFightSubscription(_observers, observer);
+        }
+
+        return null;
+    }
+
+    private void Notify()
+    {
+        foreach (var observer in _observers)
+        {
+            observer.Notify(this);
+        }
+    }
+
+    public void Play()
+    {
+        Score = new Random().Next(1, 1000);
+        Notify();
+    }
+}
+
+class BoxFightSubscription : IDisposable
+{
+    private readonly IList<Observer> _observers;
+    private readonly Observer _observer;
+
+    public BoxFightSubscription(IList<Observer> observers, Observer observer)
+    {
+        _observers = observers;
+        _observer = observer;
+    }
+
+    public void Dispose()
+    {
+        if (_observers.Contains(_observer))
+        {
+            _observers.Remove(_observer);
+        }
+    }
+}
+
+class RiskyPlayer : Observer
+{
+    public override void Notify(BoxFight boxFight)
+    {
+        Console.WriteLine($"Risky player: Score {boxFight.Score}");
+    }
+}
+
+class SafePlayer : Observer
+{
+    public override void Notify(BoxFight boxFight)
+    {
+        Console.WriteLine($"Safe player: Score {boxFight.Score}");
+    }
+}
+
+var boxFight = new BoxFight();
+var riskyPlayer = new RiskyPlayer();
+var safePlayer = new SafePlayer();
+
+riskyPlayer.Subscribe(boxFight);
+safePlayer.Subscribe(boxFight);
+
+boxFight.Play();
+
+safePlayer.Unsubscribe();
+
+boxFight.Play();
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net examples:                                                                                                                                                   |
+1) Events EventHandlers                                                                                                                                          |
+2) IObservable                                                                                                                                                   |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------
+      |
+ Стан |
+      |
+------
+
+Дозволяє об'єкту змінювати свою поведінку в залежності від внутрішнього стану
+
+class Order
+{
+    private List<string> _products = new List<string>();
+    private OrderState _state;
+
+    public Order()
+    {
+        _state = new NewOrder(this);
+    }
+
+    public void ChangeState(OrderState state)
+    {
+        _state = state;
+    }
+
+    public void AddProduct(string product)
+    {
+        _products.Add(product);
+        _state.AddProduct();
+    }
+
+    public void Complete()
+    {
+        _state.Complete();
+    }
+    public void Ship()
+    {
+        _state.Ship();
+    }
+
+    public void Deliver()
+    {
+        _state.Deliver();
+    }
+
+    public void Done()
+    {
+        _state.Done();
+    }
+
+    public void Cancel()
+    {
+        _state.Cancel();
+    }
+}
+
+abstract class OrderState
+{
+    protected readonly Order Order;
+
+    protected OrderState(Order order)
+    {
+        Order = order;
+    }
+
+    public virtual void AddProduct()
+    {
+        OperationIsNoAllowed("AddProduct");
+    }
+
+    public virtual void Complete()
+    {
+        OperationIsNoAllowed("Complete");
+    }
+
+    public virtual void Ship()
+    {
+        OperationIsNoAllowed("Ship");
+    }
+
+    public virtual void Deliver()
+    {
+        OperationIsNoAllowed("Deliver");
+    }
+
+    public virtual void Done()
+    {
+        OperationIsNoAllowed("Done");
+    }
+
+    public virtual void Cancel()
+    {
+        Order.ChangeState(new CancelledState(Order));
+    }
+
+    protected void OperationIsNoAllowed(string operationName)
+    {
+        Console.WriteLine($"Operation {operationName} is not allowed in state {this.GetType().Name}");
+    }
+}
+
+class CancelledState : OrderState
+{
+    public CancelledState(Order order) : base(order)
+    {
+    }
+
+    public override void Cancel()
+    {
+        OperationIsNoAllowed("Cancel");
+    }
+}
+
+
+class NewOrder : OrderState
+{
+    public NewOrder(Order order) : base(order) { }
+
+    public override void AddProduct()
+    {
+    }
+
+    public override void Complete()
+    {
+        Order.ChangeState(new CompletedState(Order));
+    }
+}
+
+class CompletedState : OrderState
+{
+    public CompletedState(Order order) : base(order) { }
+
+    public override void Ship()
+    {
+        Order.ChangeState(new ShippedState(Order));
+    }
+}
+
+class ShippedState : OrderState
+{
+    public ShippedState(Order order) : base(order)
+    {
+    }
+
+    public override void Deliver()
+    {
+        Order.ChangeState(new DeliveredState(Order));
+    }
+}
+
+class DeliveredState : OrderState
+{
+    public DeliveredState(Order order) : base(order)
+    {
+    }
+
+    public override void Done()
+    {
+        Order.ChangeState(new DoneState(Order));
+    }
+}
+
+class DoneState : OrderState
+{
+    public DoneState(Order order) : base(order)
+    {
+    }
+
+    public override void Cancel()
+    {
+        OperationIsNoAllowed("Cancel");
+    }
+}
+
+Order order = new Order();
+order.Done(); // Not Allowed
+order.AddProduct("Bear");
+order.Complete();
+order.Ship();
+order.Deliver();
+order.Done();
+order.Cancel(); // Not Allowed
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+                                                                                                                                                                |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------
+           |
+ Cтратегія |
+           |
+-----------
+
+Визначає сімейство алгоритмів і дозволяє їх взаєммозаміняти без втручання в клієнський код, що використовує стратегію
+
+interface IWearingStrategy
+{
+  Clothes GetClothes();
+}
+
+class RainingWearingStrategy             class SunWearingStrategy
+{                                        {
+   public Clothes GetClothes()             public Clothes GetClothes()
+   {                                       {
+      return RainyClothes();                 return SunClothes();
+   }                                       }
+}                                        }
+
+class Me
+{
+  private IWearingStrategy _strategy;
+
+  public Me(IWearingStrategy strategy) { _strategy = strategy; }
+
+  public void ChangeStrategy(IWearingStrategy strategy) { _strategy = strategy; }
+
+  public GoOutside()
+  {
+    var clothesToWare = _strategy.GetClothes();
+  }
+}
+
+var me = new Me(new RainingWearingStrategy());
+me.GoOutside(); // Go outside with raincoat
+/// Next sunny day
+
+me.ChangeStrategy(new SunWearingStrategy());
+me.GoOutside(); // Go outside with summer clothes
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                |
+1) Array, List та інші колекції мають метод Sort, який по певному алгоритму сортує внутрішньо колекцію елементів. У цих алгоритмах об'єкти порівнюються між собою.           |
+Наприклад, ми хочемо посортувати масив стрічок деколи без урахування кейсу, деколи з урахуванням кейсу. При порівнянні двох елементів викликається метод IComparer.Compare.  |
+Через метод Sort можна передати конкретну реалізацію цієї абстракції, компарер з урахуванням кейсу чи без.                                                                   |                                                                                    |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-----------------
+                 |
+ Шаблонний метод |
+                 |
+-----------------
+
+Визначає покроково алгоритм дій, дозволяючи підтипам перевизначити поведінку дій
+Дуже схожий на builder pattern.
+
+class DefaultMessagesSort
+{
+  public void SortByAllCriteria()
+  {
+     SorthByName();
+     SortDate();
+     SortByPriority();
+  }
+
+  protected virtual void SearchByName() { /* Sort ascending */ }
+  protected virtual void SortByDates() { /* Sort ascending */ }
+  protected virtual void SortByPriority() { /* Sort ascending */ } 
+}
+
+class HighLowMajorPriorityMessagesSort : DefaultMessagesSort
+{
+  protected override void SortByPriority() { /* Sort in another way by priority, for example firstly by  Hight, then low, then Major */ }
+}
+
+class ClientNameMessagesSort : DefaultMessagesSort
+{
+  protected override void SearchByName() { /* Sort in another way by name, for example you need in beginning messages from John, thne Kelly and then from else */ }
+}
+
+class FirstFourthquarterFirstAndHighLowMajorPriorityMessagesSort : DefaultMessagesSort
+{
+  protected override void SortByDates() { /* Sort in another way by dates, for example firstly messages from first and fourth quarter then else abd by  Hight, then low, then Major */ }
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+.Net example:                                                                                                                                                                           |
+1) Кастомні контроли, що наслідуютсья від Web.UI.Control можуь бути або композитні, що містять в собі інші контроли, або рендирити унікальні візуальні ефекти.                          |
+Композитні оверайдяться CreateChildControls, унікальні - метод Render. Алгоритм завантаження, рендеринг кастомних контролів у базовому класі не змінюється, змінюєтсья лише поведінка.  |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------
+            |
+ Відвідувач |
+            |
+------------
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------     
+.Net example:                                                                                                                                                   |
+1) System.Linq.Expressions.ExpressionVisitor                                                                                                                    |
+----------------------------------------------------------------------------------------------------------------------------------------------------------------

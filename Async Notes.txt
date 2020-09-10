@@ -1,0 +1,156 @@
+1) async void метод(fire and forget) не дозволяє дізнатись чи таска виконана та заавейтити її, перехопити unhandled exceptions
+2) ASP.NET Async I/O operation
+При надходжені ріквесту IIS(Core має щось по назві Kernel, ібу як там працює) бере один з потоків thread pool'у. Даний потік володіє AspNetSynchronicationContext(окрім Core), який, якщо казати примітивно, являється контекстом ріквесту(HTTP.Current, де Request, Response), даним контекстом може володіти будь-який потік, але лиш один потік одночасно, на відміну від UI app(Win Forms, WPF), де SyncContext'ом володіє лише один потік. При виконані await, повернувшись з метода, що авейтиться, потік повертається до caller і продовжує виконання коду. Якщо такого вже немає, потік повертається до thread pool. Дана заавечена I/O операція виконується без потоку(ні os, ні driver, ні будь-якого іншого), there's no thread. Після закінчення роботи драйверів, вони сповіщають OS за допомогою переривання і управління повертається програмі, скедулиться contunuation, який підбирається для виконання БУДЬ-ЯКИМ вільним потоком з thread pool(це може бути той потік, що ініціював операцію, а може і ні). Даний потік, якщо не було вказано ConfigureAwait(false), буде намагатись отримати AspNetSynchronicationContext, допоки не заполучить його(можливі дедлоки). Так як AspNetSynchronicationContext може одночасно володіти лише один потік, якщо декілька асинхроний операцій виконалось(в межі ріквеста, думаю) і декілька потоків бажають отримати контекст, контекст сихнронізує і виконає потоки one by one. Після отримання контексту потік починає виконувати continuation.
+
+Once your async method hits an await, the method is blocked but the thread returns to the thread pool.
+When the method is ready to continue, any thread is snatched from the thread pool and used to resume the method.
+The only difference ConfigureAwait makes in ASP.NET is whether that thread enters the request context when resuming the method.
+
+a) ConfigureAwait(false) не варто викликати у action методі, так як continuation буде записувати Response, а він буде доступний лише, якщо потік володіє контекстом.
+Варто викликати ConfigureAwait(false) у асинхронних методах, що викликаються і авейтяться з action методів
+
+public async Task<AcrionResult> ExampleAsync()
+{
+    // Step 1 - Thread 'z' kicks in WITH AspNetSynchronicationContext, initializes model
+    var model = new ViewModel();
+    // Step 2 - Thread 'z' calls method Get
+    var dataTask = _service.GetSomeCoolFashinableCleaverEntusiasticDataAsync();
+    // Step 4 - Thread 'z' resumes execution of action method WITH AspNetSynchronicationContext
+    _service.NotifySomeoneAboutSmth(); // Sync Call
+    // Step 5 - Thread 'z' awaits until dataTask will be done, thread goes to thread pool and maybe handels some other requests
+    // if it's already done it executes immediately as sync operation,  no delays, no context switch, STILL WITH AspNetSynchronicationContext
+    model.Data = await dataTask;
+    // Step 6 - Thread 'z' resumes execution of action method WITH AspNetSynchronicationContext
+    return View(model);
+}
+
+public async Task<List<CustomerPipiskoLarge>> _service.GetSomeCoolFashinableCleaverEntusiasticDataAsync()
+{
+   // Step 3 - Thread 'z' sends query(executes  _dbContext.Customers.Where(x => x.Pipisko > 15).ToListAsync().ConfugureAwait(false))
+   // and yields to caller because of await keyword
+   var data = await _dbContext.Customers.Where(x => x.Pipisko > 15).ToListAsync().ConfugureAwait(false);
+   // Step can be executed during step 4-6 - Thread 'z' or any other thread that is avaliable in thread pool. Continues WITHOUT AspNetSynchronicationContext
+   // returns mapped data
+   return _mapper.Map<List<CustomerPipiskoLarge>>(data);
+}
+
+Beware Implicit Parallelism
+There is one more major concern when moving from a synchronizing context to a thread pool context (i.e., from legacy ASP.NET to ASP.NET Core).
+
+The legacy ASP.NET SynchronizationContext is an actual synchronizing context, meaning that within a request context, only one thread can actually execute code at a time. That is, asynchronous continuations may run on any thread, but only one at a time. ASP.NET Core does not have a SynchronizationContext, so await defaults to the thread pool context. So, in the ASP.NET Core world, asynchronous continuations may run on any thread, and they may all run in parallel.
+
+As a contrived example, consider this code, which downloads two strings and places them into a list. This code works fine in legacy ASP.NET because the request context only permits one continuation at a time:
+
+private HttpClient _client = new HttpClient();
+
+async Task<List<string>> GetBothAsync(string url1, string url2)
+{
+    var result = new List<string>();
+    var task1 = GetOneAsync(result, url1);
+    var task2 = GetOneAsync(result, url2);
+    await Task.WhenAll(task1, task2);
+    return result;
+}
+
+async Task GetOneAsync(List<string> result, string url)
+{
+    var data = await _client.GetStringAsync(url);
+    result.Add(data);
+}
+The result.Add(data) line can only be executed by one thread at a time because it executes in the request context.
+
+However, this same code is unsafe on ASP.NET Core; specifically, the result.Add(data) line may be executed by two threads at the same time, without protecting the shared List<string>.
+
+3) Якщо таска виконана, виклик await не відпускає потік і не скедулить continuation, а продовжується синхронно. Тому ConfigureAwait() у таких випадках буде проігнорено.
+
+// Runs in context
+await GetCompletedTaskAsync().ConfugireAwait(false);
+// Still runs in context
+
+4)
+public async Task<bool> GetBoolAsync()
+{
+  return await _service.GetBoolAsync();
+}
+
+Better to write this 
+
+public Task<bool> GetBool()
+{
+  return _service.GetBoolAsync();
+}
+
+
+Якщо у методі лише один await і з результатом операції нічого не роблять надалі у цьому методі(return await or var task = await; return taks;), то краще повернути таску і дати можливість await it by the caller, аніж очікувати тут даремно(так як і так треба викликати await by caller, щоб отримати результат, а так управління одразу повернеться до caller'а, і він може виконувати іншу роботу, допоки йому не знадобиться результат і він заавейтить для цього таску, нехай caller вирішує коли авейтити операці). Це дозволить не генерити stateMachine для цього методу, так як він не async більше(для кожного async методу генериться state machine, в якій метод MoveNext() містить весь код async методу, що розбитий по блоках, а в самому async методі створюється об'єкт структури state machine та повертається таска(if Task or Task<T> return type)).
+Це не розповсюджується на методи, у який асинхронна операція знаходитсья в using, try/catch чи finaly блоках, так як для using операція має бути закічення перед викликом Dispose, а try catch не зловить exception, якщо таску не заавейтити(async await or sync Wait()).
+Також треба врахувати, якщо метод не з модифікатором async, то exception не буде врапнуто в таску, що він повертає.
+Приклад:
+
+public async Task<bool> DoSomething1Async(string someParameter)
+    {
+        if (string.IsNullOrWhiteSpace(someParameter))
+        {
+            return false;
+        }
+        return await _serviceClient.DoSomeExpensiveCheckAsync(someParameter);
+    }
+
+    //No async or await keywords   
+    public Task<bool> DoSomething2Async(string someParameter)
+    {
+        if (string.IsNullOrWhiteSpace(someParameter))
+        {
+            return Task.FromResult(false);
+        }
+        return _serviceClient.DoSomeExpensiveCheckAsync(someParameter);
+    }
+
+async Task UseSomethingAsync(string someParameter)
+{
+    // if IsNullOrWhiteSpace throws an exception, it will be wrapped in
+    // the task and not thrown here.
+    Task t1 = DoSomething1Async(someParameter);
+
+    // rather, it'll get thrown here. this is best practice,
+    // it's what users of Task-returning methods expect.
+    await t1;
+
+    // if IsNullOrWhiteSpace throws an exception, it will
+    // be thrown here. users will not expect this.
+    Task t2 = DoSomething2Async(someParameter);
+
+    // this would never have been reached.
+    await t2;
+}
+
+------------------------------------------
+
+public async Task<int> Method()
+{
+   await SomeCaallAsync();
+   return await AnotherCallAsync(); // cannot return Tast<int> from AnotherCallAsync directly, because if there's one await, method signature is Task<T> and u can return only T
+                                    // AnotherCallAsync returns Task<T> return AnotherCallAsync(); will cause compile error: return type must be int not Task<int>
+}
+
+
+-------------------------------------------------------------------------------
+Інший pitfall
+
+static AsyncLocal<int> context = new AsyncLocal<int>();
+
+static async Task MainAsync()
+{
+    context.Value = 1;
+    Console.WriteLine("Should be 1: " + context.Value);
+    await Async();
+    Console.WriteLine("Should be 1: " + context.Value); // Is actually "2" - unexpected!
+}
+
+static Task Async()
+{
+    Console.WriteLine("Should be 1: " + context.Value);
+    context.Value = 2;
+    Console.WriteLine("Should be 2: " + context.Value);
+    return Task.CompletedTask;
+}
+

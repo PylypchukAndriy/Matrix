@@ -1,0 +1,224 @@
+----------
+          |
+ MondogDB |
+          |
+----------
+
+Документо-орієнтована база даних. Документи зберігаються у BSON(БіСон, Binary JSON)(швдша робота з даними, але більше займає пам'яті) форматі та представляє набір пар ключ-значення без чітко заданої кількості пар.
+Підтримує індекси, реплікацію, шардинг, ефективне зберігання BLOB(зображення, аудіо, відео).
+Використовується коли треба зберігати складні по структурі дані, які важко описати зв'язками. Окрім master(primary) бази, можна добавити slave(Secondary, replica) бази,
+дані, які записані у master реплікуються у slave. Якщо master database відвалиться, буде обрана master одна з slave. Можна налаштувати read request одразу з slave і зняти навантаження з master.
+Особливістю MondogDB являється горизонтальне маштубавання за допомогою шарадингу, створюютсья декілька primary баз з їнхіми slave, у які пишуться і з яких зчитуються залежно від вибраного shard key
+
+
+ Sharded Cluster             
+             /                    |                    \
+      Shard A                  Shard B                  Shard C
+        / \                      / \                      / \
++-------+ +---------+    +-------+ +---------+    +-------+ +---------+
+|Primary| |Secondary|    |Primary| |Secondary|    |Primary| |Secondary|
+|  25GB |=| 25GB    |    | 25 GB |=| 25 GB   |    | 25GB  |=| 25GB    |   
++-------+ +---------+    +-------+ +---------+    +-------+ +---------+
+
+show dbs
+use myDatabase
+show collections
+db.createCollection("client")
+db.client.insert({name: "Andriy"})
+db.client.update({name: "Andriy"}, {name: "Andriy", surname: "Pylypchuk"})
+db.client.update({name: "Andriy"}, {$set: {eyes: 2}})
+db.client.update({name: "Andriy"}, {$unset: {eyes: 0}})
+db.client.remove({$or: [{name: "Andriy"}, {surname: "Pylypchuk"}] })
+db.client.find({name: "Andriy"})
+db.client.find($and: [{name: "Andriy"}, {surname: "Pylypchuk"}])
+db.client.find({name: {$exists: true}})
+db.client.find({name: {$type: "string"}})
+
+-----
+     |
+ SQL |
+     |
+-----
+
+Декларативна(не процедурна) мова для створення запитів та опису структур даних. Складається з:
+DDL - мова опису структур даних(CREATE, ALTER, DROP, TRUNCATE)
+DML - мова управління даними(SELECT, INSERT, UPDATE, DELETE)
+DCL - мова управління доступом у БД(GRANT, REVOKE)
+Як деклараивна мова, відповідає за опис того, що треба робит, а не як(імперативна(процедурна))
+
+-------
+       |
+ T-SQL |
+       |
+-------
+
+Діалект(розширення) SQL для SQL SERVER. Являється процедурною мовою, каже як це зробити. Має додаткові функції:
+Transaction contorl(BEGIN TRAN, COMMIT, ROLLBACK)
+Змінні(DECLARE, SET, SELECT)
+Flow control(IF, ELSE, BEGIN, END, BREAK, CONTINUE, WHILE, RETURN, GOTO)
+Error handling(TRY, CATCH)
+DELETE, UPDATE можна використовувати інші таблиці, заджойнивши
+Багаторядковий insert
+
+------------------
+                  |
+ Реляційна модель |
+                  |
+------------------
+
+Реляційна модель - логічна модель, що використовується для управління і маніпуляціями над даними. Основується на теорії множин та обчислення предикатів
+Множина - це сукупність невпорядкованих унікальних елементів {a, b, c} = {b, c, a}. Якщо елементи не унікальні - це мультимножина
+Предикат - це твердженняя, яке істинне або хибне.
+Відношення - математична структура, що формально визначає властивості різних об'єктів і їхні взаємозв'язки(таблиця)
+Заголовок відношення - множина атрибутів(стовпців)
+Тіло відношення - множина кортежів(рядків)
+
+-------
+       |
+ Table |
+       |
+-------
+
+Table types
+1) Standart table
+2) Table variable @table
+3) Temp table #table
+
+Difference between 2 & 3:
+Temp table stored in tempdb while table variable in memory. @table faster that #table if presents a small amount of rows. @table do not allow index. #table visible in another stored procedures. @table can be passed as parameter
+
+-------------
+             |
+ Constraints |
+             |
+-------------
+
+Types of Contraints:
+1) Primary Key
+2) Foreign Key
+3) Index
+4) Unique
+5) Check
+6) NOT NULL
+7) Default
+
+Primary key - стовпець(атрибут) або набір, який однозначно ідентифікує рядок, являється унікальним і не дозволяє NULL значень. Ствоюрється кластерний унікальний індекс, якщо кластерний вже існує, то некластерний.
+Індекси викоритсовуються для пришвидшення доступу до даних. При створенні індекса створюється збалансоване дерево(файл, сторінки, рядки), лиски якого містять або значення кортежу(кластеризовинй) або значення атрибуту по якому було створено і посилання на рядок, де лежать дані(необхідна операція зчитування атрибутів по даному рядку, якщо атрибути не були включені у листки дерева)
+INSERT, UPDATE(ключових атрибутів), DELETE заставляються індекс перегенерюватись, що впливає на продуктивність
+Кластеризований індекс сортує таблицю відносно атрибутів ключа і може бути тільки один у таблиці. Таблиця без кластерного індексу - куча
+Composite index - індекст по декільком атрибутам
+Included columns - колонки, які записуються у листки збалансованого дерева у некластирезованому індексі
+Foreign key - атрибут, який посилається на атрибут іншої таблиці. Дозволяє NULL(по дефолту неунікальний індекс) і посилається на унікальний індекс.
+Referential actions - дії ON DELETE UPDATE рядка, на який посилаються
+CASCADE - відповідна дія, що виконуєтсья на рядок, якого посилались, виконається на на рядок, що посилається
+RESTRICT - забороняє здійснювати дії над рядком, на якого ще є посилання у іншій таблиці
+NO ACTION - схожий на RESTRICT, лише перевірка на цілісність відбувається відкладено(після виконання операції), а RESTRICT до того як операція виконається
+SET NULL - занулює 
+SET DEFAULT - встановлює дефолтне значення типу атрибуту
+Сурогатний ключ - згенерований базою даний унікальний ідентиікатор
+
+---------
+         |
+ Trigger |
+         |
+---------
+
+Тип сторед процедури(об'єкт бази даних), який автоматично виконується на певну події бази даних, об'єкту бази даних чи сервера. Типи тригерів:
+1) DML (INSERT, UPDATE, DELETE) 
+INSTEAD OF дозволяє виконати замість дії власний код
+2) DDL (CREATE DATABASE, CREATE TABLE, SP, FUNCTION, DROP, ALTER)
+3) LOGON
+
+------
+      |
+ Lock |
+      |
+------
+
+Exclusive lock(write) - якщо shared lock(read lock) не становлено, локає для запису, інші транзакції не можуть зчитати або модифікувати вибрані рядки
+Shared lock(read) - якщо немає exlusive(write lock), зчитуємо і не дозволяємо write lock на зчитані рядки, shared lock дозволено встановлювати іншим транзакціям. 
+
+While a teacher is writing something (exclusive lock) on the board:
+
+Nobody can read it, because it's still being written, and she's blocking your view => If an object is exclusively locked, shared locks cannot be obtained.
+
+Other teachers won't come up and start writing either, or the board becomes unreadable, and confuses students => If an object is exclusively locked, other exclusive locks cannot be obtained.
+
+When the students are reading (shared locks) what is on the board:
+
+They all can read what is on it, together => Multiple shared locks can co-exist.
+
+The teacher waits for them to finish reading before she clears the board to write more => If one or more shared locks already exist, exclusive locks cannot be obtained.
+
+--------------
+              |
+ Transactions |
+              |
+--------------
+
+Транзакція - набір послідовних операцій, які розглядуються як логічна одиниця роботи з даними. Транзакція може бути виконана цілком і успішно, не впливаючи на тразакції, що йдуть впаралель, або не виконана зовсім. Властивості транзакцій ACID:
+1) Атомарність - гарантує, що ніяка транзакція не буде зареєстрована в системі частково. Або всі операції виконаються успішно або результат жодної операції не буде збережено.
+2) Узгодженість - система знаходить у узгодженому стані до транзакції та повинна залишитись у цьому стані і після виконання транзакції. Під час виконання система може бути не у узгодженому стані.
+3) Ізольованість - під час виконання транзакції паралельні транзакції не повинні впливати на результат її виконання.
+4) Надійність - зміни, що виконані у завершеній транзакції повинні бути збережені, навіть якщо системи вийшла з ладу на нижніх рівнях, після повернення системи у нормальний стан, зміни повинні бути збережені.
+
+Рівні ізоляції - ступінь ізольованості одної транзакції від іншої. Степінь допустимості неузгоджених даних у транзакції. Вищий рівень транзакції забезпечує кращій узгодженості даних, але сповільнює роботу паралельний транзакції вплоть до послідовного виконання, нижчій рівень дозволяє швидке виконання паралеьних транзакцій, але допускає неузгоджені дані.
+При паралельному виконанні транзакцій можливі такі проблеми:
+1) Втрачені оновлення - при паралельній змінні одного блоку даних всі, крім останньої зміни, втрачаються.
+
+Транзакція 1	                       Транзакція 2
+UPDATE tbl1 SET f2=f2+20 WHERE f1=1;   UPDATE tbl1 SET f2=f2+25 WHERE f1=1
+
+2) Брудне читання - зчитування даних, добавлених ще не виконаною транзакцією, що буде відмінена.
+
+Транзакція 1	                        Транзакція 2
+UPDATE tbl1 SET f2=f2+1 WHERE f1=1;	
+                                           SELECT f2 FROM tbl1 WHERE f1=1;
+ROLLBACK
+
+3) Неповторюване читання - при повторному читанні даних раніше прочитані дані виявляються зміненими
+
+Транзакція 1	                        Транзакція 2
+                                        SELECT f2 FROM tbl1 WHERE f1=1;
+UPDATE tbl1 SET f2=f2+1 WHERE f1=1;	
+COMMIT;	
+                                        SELECT f2 FROM tbl1 WHERE f1=1;
+
+4) Фантомне читання - одна і та ж вибірка в ході транзакції дає різну множину рядків
+
+Транзакція 1	                        Транзакція 2
+                                        SELECT SUM(f2) FROM tbl1;
+INSERT INTO tbl1 (f1,f2) VALUES (15,20)	
+COMMIT;	
+                                        SELECT SUM(f2) FROM tbl1;
+
+Рівні:
+0) READ UNCOMMITED - гарантує відсутність втраченого оновлення.
+На дані, які будуть модифіковуватись вішається write lock і звільняється одразу після update, інша транзакця не може змінити чи зчитати поки update не виконається. Зчитування не блокується.
+1) READ COMMITED - гарантує відсутність брудного читання, окрім ще і втраченого оновлення.
+Транзакція, що модифікує, вішає write lock на вибрані дані до закінчення транзакції і інші не можуть зчитати чи записати, допоки блокуюча транзакція не закінчиться. Транзакція, що зчитує, вішає read lock, який звільняється після виконання select, тому тут ще присутня проблема з неповторюваним читанням.
+2) REPEATABLE READ - гарантує відсутність втраченого оновлення, брудного читання та неповторюваного читання.
+3) SERIALIZABLE - повністю ізолює транзакції один від одного 
+
+Коротко по локах
+1) READ UNCOMMITED - х3, мав би бути write lock до кінця update, але каже вся інфа, що read тут не обмежується, знач і write lock не ставиться
+2) READ COMMITED - write lock до кінця транзакції, read lock до закінчення select
+3) REPEATABLE READ - write lock до кінця транзакції, read lock до кінця транзакції. Вставка дозволяється, тому виникає фантомне читання, не застосовується range lock
+4) SERIALIZABLE - read, write locks на вибряні рядки до кінця транзакції, range lock вішається, коли використовуєтсья where
+ 
+Рівень ізоляції	     Фантомне читання	Неповторюване читання	«Брудне» читання	Втрачене оновлення
+SERIALIZABLE	              +	                 +	                +	                +
+REPEATABLE READ 	      -	                 +	                +                       +
+READ COMMITTED	              -	                 -	                +	                +
+READ UNCOMMITTED	      -                  -	                -	                +
+
+----------
+          |
+ Deadlock |
+          |
+----------
+
+The introduction of granular (subset) locks creates the possibility for a situation called deadlock. Deadlock is possible when incremental locking (locking one entity, then locking one or more additional entities) is used. 
+To illustrate, if two bank customers asked two clerks to obtain their account information so they could transfer some money into other accounts, the two accounts would essentially be locked. 
+Then, if the customers told their clerks that the money was to be transferred into each other's accounts, the clerks would search for the other accounts but find them to be "in use" and wait for them to be returned. 
+Unknowingly, the two clerks are waiting for each other, and neither of them can complete their transaction until the other gives up and returns the account. Various techniques are used to avoid such problems.

@@ -222,3 +222,72 @@ The introduction of granular (subset) locks creates the possibility for a situat
 To illustrate, if two bank customers asked two clerks to obtain their account information so they could transfer some money into other accounts, the two accounts would essentially be locked. 
 Then, if the customers told their clerks that the money was to be transferred into each other's accounts, the clerks would search for the other accounts but find them to be "in use" and wait for them to be returned. 
 Unknowingly, the two clerks are waiting for each other, and neither of them can complete their transaction until the other gives up and returns the account. Various techniques are used to avoid such problems.
+
+----
+    |
+ EF |
+    |
+----
+
+Підходи до відображення ієрархії наслідвання:
+1) Table-Per-Hierarchy
+2) Table-Per-Type
+3) Table-Per-Concrete class
+
+TPH
+Одна таблиця на всі підтипи. Таблиця називається як базовий клас та містить дискримінатор(повна назва типу), який і визначає тип до якого належить рядок. Всі атрибути, які містяться у
+похідних класах, являються nullable. У контексті достатньо оголосити DbSet з базовим типом і EF знайде всі похідні типи(Reachability Convention).
+Всі запити до такого DbSet'y будуть поліморфні(об'єкти будуть кверитись під базовим типом). Постає питання як кверити окремі типи і відрізнити їх від базового.
+Для цього можна використати метод OfType<>, який відбере лише об'єкти даного типу(неполіморфна кверя). BillingDetails.OfType<BankDetails>()
+
+Переваги:
+1) High-performance, бо лише одна таблиця і joins не потрібні
+Недоліки:
+1) Порушує третю нормальну форму
+2) Навіть якщо атрибут похідного класу Required, у базі даних він NULL, відсутність constraint NULL може порушити data integrity на рівні БД(якщо сторед процедура ще інсертить або вручну)
+3) Велика кількість NULL атрбутів з похідних класів
+4) При додаванні нової похідної сутності кількість NULL колонок зростає
+
+TPT
+Кожен тип має свою таблицю, навіть базовий абстрактний клас. Всі атрибути похідних типів містять у їх відповідних таблицях з відповідними contraint'ами. Похідні типи мають атрибут,
+який виступає і primary key i foreign key on Base type.
+Переваги:
+1) Цілісність даних на рівні БД не порушено, на відміну від TPH
+2) Легке видалення похідних типів, drop table
+
+Недоліки:
+1) Повільніший CRUD через JOINS
+
+TPCC
+Кожен не абстрактний клас ієрархії отримує окрему таблицю. Всі проперті з абстрактного класу присутні у кожній таблиці.
+
+Переваги:
+1) Такі як у TPT
+2) При великому дереву їєрархії швидший CRUD, так як менше JOINS
+
+Недоліки:
+1) Тяжко реалізовувати, якісь проблеми з Identity.
+
+---------------
+               |
+ Normalization |
+               |
+---------------
+
+Процес структурування даних у реляційній базі даних за допомогою форм нормалізації для зменшення повторення даних та забезпечення цілосності даних.
+Форми нормалізації розбивають таблиці на декілька та зв'язують їх за допомогою відношень. Для більшості застосунків найкраще досягти 3 форми нормалізації.
+1st NF -> 2nd NF -> 3rd NF -> Boyce-Codd NF known as 3.5 NF -> 4th NF -> 5th NF -> 6th NF
+
+1st:
+1) Одне значення у атрибуті. Значення у атрибуті містятть лише одне значення, а перелік через кому
+2) Домен атрибуту не повинен змінюватись. Якщо у атрибуті зберігається день народження, то там не повинно бути ім'я
+3) Кожен атрибут унікальний
+4) Порядок не має значення
+
+2nd:
+1) Бути у першій формі
+2) Кожен атрибут має бути залежний від всього первинного ключа, а не лише від його частини(у випадку composite). Remove Partial Dependency
+
+3rd:
+1) Бути у другій формі
+2) Кожен атрибут має залежити від первинного ключа, а не від іншого атрибуту, що не являється первинним ключем. Remove Transitive Dependency

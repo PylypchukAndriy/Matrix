@@ -84,8 +84,21 @@ Table types
 2) Table variable @table
 3) Temp table #table
 
-Difference between 2 & 3:
-Temp table stored in tempdb while table variable in memory. @table faster that #table if presents a small amount of rows. @table do not allow index. #table visible in another stored procedures. @table can be passed as parameter
+------------------------------
+                              |
+ Temp table vs table variable |
+                              |
+------------------------------
+
+Тимчасова таблиця створюється у tempDB. Цей тип таблицці поводиться як звичайна таблиця, може мати індекси та constraint'и. Не можна передавати як аргумент.
+Існує два типи тимчасової таблиці: #TempTable and ##TempTable.
+#TempTable видима тільки з сесії, яка її створила, та видаляється коли ця сесія закривається.
+##TempTable видима зі всіх сесій та видаляється коли сесія, що сторила її, закривається та немає жодної сесії, яка реферить на темп таблицю.
+
+Таблична змінна створюється у пам'яті. Якщо у таблиця містить багато даних, то вона може бути переміщена у tempDB. Не можна вказувати Index, але можна Primary key and Unique.
+Таблична змінну можна передавати як аргумент, видима лише в межах батчу. Не може бути залучена в транзакції, логування, локання, що робить її більш швидкою за тимчасову таблицю
+
+Якщо у таблиці менше 1000 рядків краще використовувати табличну змінну, інакше ж тимчасову  таблицю.
 
 -------------
              |
@@ -116,6 +129,59 @@ NO ACTION - схожий на RESTRICT, лише перевірка на ціл�
 SET NULL - занулює 
 SET DEFAULT - встановлює дефолтне значення типу атрибуту
 Сурогатний ключ - згенерований базою даний унікальний ідентиікатор
+
+------
+      |
+ View |
+      |
+------
+
+Віртуальна таблиця, контент(рядки та стовпці) якої визначається запитом. Використовується для:
+1) Спрощення складного запиту, який можна перевикористовувати.
+2) Як механізм захисту, користувачу можна дати доступ даних через вюху, але не прямий доступ до даних через underlying таблиці. Можна надавати доступ або обмежити до кожного атрибуту вюхи
+3) Якщо модель змінилась, можна надати інтерфес зворотньої сумісності. Створити вюху, яка буде відповідати всім вимогам.
+
+З вюхами можна використовувати Insert, Delete, Update, які будуть працювати напряму з таблицями, що використовує вюха. Є ряд обмежень, коли вюху можна використовувати у DML,
+наприклад всі стовпці мають належати до однієї таблицці і ці стовпцці мають існувати у вюсі.
+
+На вюху можна навішати індекси, але вона тоді перестає бути віртуально і матеріалізується. При зміні даних у базовій таблиці, сервер дублює операції на вюсі.
+Якщо структру базової таблиці хочуть змінити, вюха має бути дропнута спочатку(WITH SCHEMABINDING).
+
+---------------------------
+                           |
+ Stored Procs vs Functions |
+                           |
+---------------------------
+
+Stored Procedures are pre-compiled objects which are compiled for the first time and its compiled format is saved, which executes
+(compiled code) whenever it is called.
+
+A function is compiled and executed every time whenever it is called. A function must return a value and cannot modify the data received
+as parameters.
+
+Basic Differences between Stored Procedure and Function in SQL Server
+1) The function must return a value but in Stored Procedure it is optional. Even a procedure can return zero or n values.
+
+2) Functions can have only input parameters for it whereas Procedures can have input or output parameters.
+
+3) Functions can be called from Procedure whereas Procedures cannot be called from a Function.
+
+Advance Differences between Stored Procedure and Function in SQL Server
+1) The procedure allows SELECT as well as DML(INSERT/UPDATE/DELETE) statement in it whereas Function allows only SELECT statement in it.
+
+2) Procedures cannot be utilized in a SELECT statement whereas Function can be embedded in a SELECT statement.
+
+3) Stored Procedures cannot be used in the SQL statements anywhere in the WHERE/HAVING/SELECT section whereas Function can be.
+
+4) Functions that return tables can be treated as another rowset. This can be used in JOINs with other tables.
+
+5) Inline Function can be though of as views that take parameters and can be used in JOINs and other Rowset operations.
+
+6) An exception can be handled by try-catch block in a Procedure whereas try-catch block cannot be used in a Function.
+
+7) We can use Transactions in Procedure whereas we can't use Transactions in Function.
+
+8) We can use only table variables In Functions, it will not allow using temporary tables unlike Procedures.
 
 ---------
          |
